@@ -3641,8 +3641,11 @@ do
             for _, Side in pairs(Library.ActiveTab.Sides) do
                 Side.ScrollingEnabled = false
             end
+            for i,v in Input do
+                print(i,v)
+            end
         
-            while IsClickInput(Input) do -- UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or #UserInputService:GetTouches() > 0
+            while IsClickInput(Input) do
                 local location = 0
                 
                 if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.MouseButton2 then
