@@ -3666,7 +3666,6 @@ do
                 or endedInput.UserInputType == Enum.UserInputType.Touch then
                     moveConnection:Disconnect()
                     endConnection:Disconnect()
-                    print("Conn ended")
             
                     for _, Side in pairs(Library.ActiveTab.Sides) do
                         Side.ScrollingEnabled = true
