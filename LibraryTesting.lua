@@ -313,10 +313,6 @@ local function IsClickInput(Input: InputObject, IncludeM2: boolean?)
         and Input.UserInputState == Enum.UserInputState.Begin
         and Library.IsRobloxFocused
 end
-local function IsValidInput(Input)
-    return Input.UserInputType == Enum.UserInputType.MouseButton1
-        or Input.UserInputType == Enum.UserInputType.Touch
-end
 local function IsHoverInput(Input: InputObject)
     return (Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch)
         and Input.UserInputState == Enum.UserInputState.Change
@@ -3631,38 +3627,30 @@ do
             Slider:Display()
         end
     
+        local function IsValidInput(Input: InputObject)
+            return (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch)
+                and Input.UserInputState == Enum.UserInputState.Begin
+                and Library.IsRobloxFocused
+        end
+        
         Bar.InputBegan:Connect(function(Input: InputObject)
-            if not IsValidInput(Input) or Slider.Disabled then
+            if not IsClickInput(Input) or Slider.Disabled then
                 return
             end
         
             for _, Side in pairs(Library.ActiveTab.Sides) do
                 Side.ScrollingEnabled = false
             end
-
-            local trackingTouchId = nil
-            if Input.UserInputType == Enum.UserInputType.Touch then
-                trackingTouchId = Input.TouchId
-            end
         
-            while UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or (trackingTouchId ~= nil) do
+            while UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or #UserInputService:GetTouches() > 0 do
                 local location = 0
                 
                 if Input.UserInputType == Enum.UserInputType.MouseButton1 then
                     location = Mouse.X
-                elseif trackingTouchId ~= nil then
+                elseif Input.UserInputType == Enum.UserInputType.Touch then
                     local touches = UserInputService:GetTouches()
-                    local foundTouch = false
-                    for _, touch in ipairs(touches) do
-                        if touch.TouchId == trackingTouchId then
-                            location = touch.Position.X
-                            foundTouch = true
-                            break
-                        end
-                    end
-                    
-                    if not foundTouch then
-                        trackingTouchId = nil
+                    if #touches > 0 then
+                        location = touches[1].Position.X
                     end
                 end
         
@@ -3679,6 +3667,7 @@ do
         
                 RunService.RenderStepped:Wait()
             end
+        
         
             for _, Side in pairs(Library.ActiveTab.Sides) do
                 Side.ScrollingEnabled = true
