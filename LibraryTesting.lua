@@ -3642,10 +3642,10 @@ do
                 Side.ScrollingEnabled = false
             end
         
-            while UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or #UserInputService:GetTouches() > 0 do
+            while IsClickInput(Input) do -- UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or #UserInputService:GetTouches() > 0
                 local location = 0
                 
-                if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+                if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.MouseButton2 then
                     location = Mouse.X
                 elseif Input.UserInputType == Enum.UserInputType.Touch then
                     local touches = UserInputService:GetTouches()
