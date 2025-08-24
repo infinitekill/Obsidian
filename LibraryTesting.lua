@@ -3653,6 +3653,7 @@ do
 
             local moveConnection, endConnection
             local isTouchInput = input.UserInputType == Enum.UserInputType.Touch
+            print('Touchinput ',isTouchInput)
         
             moveConnection = UserInputService.InputChanged:Connect(function(changedInput)
                 if changedInput == input then
