@@ -3482,7 +3482,7 @@ do
             BorderColor3 = "OutlineColor",
             BorderSizePixel = 1,
             Position = UDim2.fromScale(0, 1),
-            Size = UDim2.new(0.75, 0, 0, 13),
+            Size = UDim2.new(Info.ScrollSpace and 0.8 or 1, 0, 0, 13),
             Text = "",
             Parent = Holder,
         })
