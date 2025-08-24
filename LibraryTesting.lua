@@ -313,6 +313,10 @@ local function IsClickInput(Input: InputObject, IncludeM2: boolean?)
         and Input.UserInputState == Enum.UserInputState.Begin
         and Library.IsRobloxFocused
 end
+local function IsValidInput(Input)
+    return Input.UserInputType == Enum.UserInputType.MouseButton1
+        or Input.UserInputType == Enum.UserInputType.Touch
+end
 local function IsHoverInput(Input: InputObject)
     return (Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch)
         and Input.UserInputState == Enum.UserInputState.Change
@@ -3626,32 +3630,56 @@ do
             Slider.Suffix = Suffix
             Slider:Display()
         end
-
+    
         Bar.InputBegan:Connect(function(Input: InputObject)
-            if not IsClickInput(Input) or Slider.Disabled then
+            if not IsValidInput(Input) or Slider.Disabled then
                 return
             end
-
+        
             for _, Side in pairs(Library.ActiveTab.Sides) do
                 Side.ScrollingEnabled = false
             end
 
-            while IsClickInput(Input) do
-                local Location = Mouse.X
-                local Scale = math.clamp((Location - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
-
+            local trackingTouchId = nil
+            if Input.UserInputType == Enum.UserInputType.Touch then
+                trackingTouchId = Input.TouchId
+            end
+        
+            while UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) or (trackingTouchId ~= nil) do
+                local location = 0
+                
+                if Input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    location = Mouse.X
+                elseif trackingTouchId ~= nil then
+                    local touches = UserInputService:GetTouches()
+                    local foundTouch = false
+                    for _, touch in ipairs(touches) do
+                        if touch.TouchId == trackingTouchId then
+                            location = touch.Position.X
+                            foundTouch = true
+                            break
+                        end
+                    end
+                    
+                    if not foundTouch then
+                        trackingTouchId = nil
+                    end
+                end
+        
+                local Scale = math.clamp((location - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+        
                 local OldValue = Slider.Value
                 Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * Scale), Info.Rounding)
-
+        
                 Slider:Display()
                 if Slider.Value ~= OldValue then
                     Library:SafeCallback(Slider.Callback, Slider.Value)
                     Library:SafeCallback(Slider.Changed, Slider.Value)
                 end
-
+        
                 RunService.RenderStepped:Wait()
             end
-
+        
             for _, Side in pairs(Library.ActiveTab.Sides) do
                 Side.ScrollingEnabled = true
             end
