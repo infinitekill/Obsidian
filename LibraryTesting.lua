@@ -3654,16 +3654,13 @@ do
             local moveConnection, endConnection
         
             moveConnection = UserInputService.InputChanged:Connect(function(changedInput)
-                if changedInput.UserInputType == Enum.UserInputType.MouseButton1 then
-                    updatePosition(changedInput.Position.X)
-                elseif changedInput.UserInputType == Enum.UserInputType.Touch then
+                if IsClickInput(changedInput) then
                     updatePosition(changedInput.Position.X)
                 end
             end)
         
             endConnection = UserInputService.InputEnded:Connect(function(endedInput)
-                if endedInput.UserInputType == Enum.UserInputType.MouseButton1 
-                or endedInput.UserInputType == Enum.UserInputType.Touch then
+                if IsClickInput(endedInput) then
                     moveConnection:Disconnect()
                     endConnection:Disconnect()
             
