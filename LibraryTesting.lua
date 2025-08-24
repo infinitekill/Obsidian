@@ -3635,7 +3635,22 @@ do
             for _, Side in pairs(Library.ActiveTab.Sides) do
                 Side.ScrollingEnabled = false
             end
+
+            local function updatePosition(posX)
+                local Scale = math.clamp((posX - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
         
+                local OldValue = Slider.Value
+                Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * Scale), Info.Rounding)
+        
+                Slider:Display()
+                if Slider.Value ~= OldValue then
+                    Library:SafeCallback(Slider.Callback, Slider.Value)
+                    Library:SafeCallback(Slider.Changed, Slider.Value)
+                end
+            end
+        
+            updatePosition(input.Position.X)
+
             local moveConnection, endConnection
         
             moveConnection = UserInputService.InputChanged:Connect(function(changedInput)
@@ -3647,17 +3662,8 @@ do
                     elseif input.UserInputType == Enum.UserInputType.Touch then
                         location = input.Position.X
                     end
-        
-                    local Scale = math.clamp((location - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
-        
-                    local OldValue = Slider.Value
-                    Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * Scale), Info.Rounding)
-        
-                    Slider:Display()
-                    if Slider.Value ~= OldValue then
-                        Library:SafeCallback(Slider.Callback, Slider.Value)
-                        Library:SafeCallback(Slider.Changed, Slider.Value)
-                    end
+
+                    updatePosition(location)
                 end
             end)
         
