@@ -3654,16 +3654,16 @@ do
             local moveConnection, endConnection
         
             moveConnection = UserInputService.InputChanged:Connect(function(changedInput)
-                if IsClickInput(changedInput) then
+                if changedInput == input then
                     updatePosition(changedInput.Position.X)
                 end
             end)
         
             endConnection = UserInputService.InputEnded:Connect(function(endedInput)
-                if IsClickInput(endedInput) then
+                if endedInput == input then
                     moveConnection:Disconnect()
                     endConnection:Disconnect()
-            
+        
                     for _, Side in pairs(Library.ActiveTab.Sides) do
                         Side.ScrollingEnabled = true
                     end
