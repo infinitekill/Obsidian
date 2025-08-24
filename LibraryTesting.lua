@@ -3650,6 +3650,7 @@ do
             end
         
             updatePosition(input.Position.X)
+            print('started')
 
             local moveConnection, endConnection
         
@@ -3663,6 +3664,7 @@ do
                 if endedInput == input then
                     moveConnection:Disconnect()
                     endConnection:Disconnect()
+                    print('started')
         
                     for _, Side in pairs(Library.ActiveTab.Sides) do
                         Side.ScrollingEnabled = true
