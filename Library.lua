@@ -4332,13 +4332,13 @@ function Library:Notify(...)
         Data.Title = tostring(Info.Title)
         Data.Description = tostring(Info.Description)
         Data.Time = Info.Time or 5
-        Data.SoundId = Info.SoundId
+        Data.SoundId = Info.SoundId or 4590657391
         Data.Steps = Info.Steps
         Data.Persist = Info.Persist
     else
         Data.Description = tostring(Info)
         Data.Time = select(2, ...) or 5
-        Data.SoundId = select(3, ...)
+        Data.SoundId = select(3, ...) or 4590657391
     end
     Data.Destroyed = false
 
@@ -6691,8 +6691,5 @@ local ThemeManager = {} do
 end
 
 getgenv().ObsidianThemeManager = ThemeManager
-
-
-
 
 return Library, SaveManager, ThemeManager
