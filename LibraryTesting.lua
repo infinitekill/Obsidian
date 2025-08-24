@@ -3627,8 +3627,8 @@ do
             Slider:Display()
         end
     
-        Bar.InputBegan:Connect(function(input)
-            if not IsClickInput(input) or Slider.Disabled then
+        Bar.InputBegan:Connect(function(Input)
+            if not IsClickInput(Input) or Slider.Disabled then
                 return
             end
         
@@ -3649,29 +3649,39 @@ do
                 end
             end
         
-            updatePosition(input.Position.X)
+            if Input.UserInputType == Enum.UserInputType.Touch then
 
-            local moveConnection, endConnection
-            local isTouchInput = input.UserInputType == Enum.UserInputType.Touch
-            print('Touchinput ',isTouchInput)
-        
-            moveConnection = UserInputService.InputChanged:Connect(function(changedInput)
-                if changedInput == input then
-                    local location = isTouchInput and changedInput.Position.X or Mouse.X
-                    updatePosition(location)
-                end
-            end)
-        
-            endConnection = UserInputService.InputEnded:Connect(function(endedInput)
-                if endedInput == input then
-                    moveConnection:Disconnect()
-                    endConnection:Disconnect()
-        
-                    for _, Side in pairs(Library.ActiveTab.Sides) do
-                        Side.ScrollingEnabled = true
+                updatePosition(Input.Position.X)
+                local moveConnection, endConnection
+
+                moveConnection = UserInputService.InputChanged:Connect(function(changedInput)
+                    if changedInput == Input then
+                        updatePosition(changedInput.Position.X)
                     end
+                end)
+            
+                endConnection = UserInputService.InputEnded:Connect(function(endedInput)
+                    if endedInput == Input then
+                        moveConnection:Disconnect()
+                        endConnection:Disconnect()
+            
+                        for _, Side in pairs(Library.ActiveTab.Sides) do
+                            Side.ScrollingEnabled = true
+                        end
+                    end
+                end)
+            else
+                while IsClickInput(Input) do
+                    local Location = Mouse.X
+                    updatePosition(Location)
+    
+                    RunService.RenderStepped:Wait()
                 end
-            end)
+    
+                for _, Side in pairs(Library.ActiveTab.Sides) do
+                    Side.ScrollingEnabled = true
+                end
+            end
         end)
 
         if typeof(Slider.Tooltip) == "string" or typeof(Slider.DisabledTooltip) == "string" then
