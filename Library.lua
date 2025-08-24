@@ -1386,7 +1386,7 @@ function Library:AddContextMenu(
             BottomImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
             CanvasSize = UDim2.fromOffset(0, 0),
             ScrollBarImageColor3 = "OutlineColor",
-            ScrollBarThickness = List == 2 and 2 or 0,
+            ScrollBarThickness = List == 2 and 12 or 0,
             Size = typeof(Size) == "function" and Size() or Size,
             TopImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
             Visible = false,
@@ -4852,7 +4852,7 @@ function Library:CreateWindow(WindowInfo)
     --// Window Table \\--
     local Window = {}
 
-    function Window:AddTab(Name: string, Icon)
+    function Window:AddTab(Name: string, Icon, ScrollbarThickness)
         local TabButton: TextButton
         local TabLabel
         local TabIcon
@@ -4920,7 +4920,7 @@ function Library:CreateWindow(WindowInfo)
                 AutomaticCanvasSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 CanvasSize = UDim2.fromScale(0, 0),
-                ScrollBarThickness = 0,
+                ScrollBarThickness = ScrollbarThickness or 0,
                 Parent = TabContainer,
             })
             New("UIListLayout", {
@@ -4949,7 +4949,7 @@ function Library:CreateWindow(WindowInfo)
                 BackgroundTransparency = 1,
                 CanvasSize = UDim2.fromScale(0, 0),
                 Position = UDim2.fromScale(1, 0),
-                ScrollBarThickness = 0,
+                ScrollBarThickness = ScrollbarThickness or 0,
                 Parent = TabContainer,
             })
             New("UIListLayout", {
@@ -6691,5 +6691,8 @@ local ThemeManager = {} do
 end
 
 getgenv().ObsidianThemeManager = ThemeManager
+
+
+
 
 return Library, SaveManager, ThemeManager
