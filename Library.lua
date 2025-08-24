@@ -3482,7 +3482,7 @@ do
             BorderColor3 = "OutlineColor",
             BorderSizePixel = 1,
             Position = UDim2.fromScale(0, 1),
-            Size = UDim2.new(1, 0, 0, 13),
+            Size = UDim2.new(Info.ScrollSpace and 0.8 or 1, 0, 0, 13),
             Text = "",
             Parent = Holder,
         })
@@ -4852,7 +4852,7 @@ function Library:CreateWindow(WindowInfo)
     --// Window Table \\--
     local Window = {}
 
-    function Window:AddTab(Name: string, Icon, ScrollbarThickness)
+    function Window:AddTab(Name: string, Icon)
         local TabButton: TextButton
         local TabLabel
         local TabIcon
@@ -4920,7 +4920,7 @@ function Library:CreateWindow(WindowInfo)
                 AutomaticCanvasSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 CanvasSize = UDim2.fromScale(0, 0),
-                ScrollBarThickness = ScrollbarThickness or 0,
+                ScrollBarThickness = 0,
                 Parent = TabContainer,
             })
             New("UIListLayout", {
@@ -4949,7 +4949,7 @@ function Library:CreateWindow(WindowInfo)
                 BackgroundTransparency = 1,
                 CanvasSize = UDim2.fromScale(0, 0),
                 Position = UDim2.fromScale(1, 0),
-                ScrollBarThickness = ScrollbarThickness or 0,
+                ScrollBarThickness = 0,
                 Parent = TabContainer,
             })
             New("UIListLayout", {
