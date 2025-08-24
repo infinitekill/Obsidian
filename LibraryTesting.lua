@@ -3650,13 +3650,14 @@ do
             end
         
             updatePosition(input.Position.X)
-            print('started')
 
             local moveConnection, endConnection
+            local isTouchInput = input.UserInputType == Enum.UserInputType.Touch
         
             moveConnection = UserInputService.InputChanged:Connect(function(changedInput)
                 if changedInput == input then
-                    updatePosition(changedInput.Position.X)
+                    local location = isTouchInput and changedInput.Position.X or Mouse.X
+                    updatePosition(location)
                 end
             end)
         
@@ -3664,7 +3665,6 @@ do
                 if endedInput == input then
                     moveConnection:Disconnect()
                     endConnection:Disconnect()
-                    print('started')
         
                     for _, Side in pairs(Library.ActiveTab.Sides) do
                         Side.ScrollingEnabled = true
