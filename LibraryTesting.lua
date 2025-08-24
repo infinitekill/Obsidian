@@ -3627,54 +3627,50 @@ do
             Slider:Display()
         end
     
-        local function IsValidInput(Input: InputObject)
-            return (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch)
-                and Input.UserInputState == Enum.UserInputState.Begin
-                and Library.IsRobloxFocused
-        end
-        
-        Bar.InputBegan:Connect(function(Input: InputObject)
-            if not IsClickInput(Input) or Slider.Disabled then
+        Bar.InputBegan:Connect(function(input)
+            if not IsClickInput(input) or Slider.Disabled then
                 return
             end
         
             for _, Side in pairs(Library.ActiveTab.Sides) do
                 Side.ScrollingEnabled = false
             end
-            for i,v in Input do
-                print(i,v)
-            end
         
-            while IsClickInput(Input) do
-                local location = 0
-                
-                if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.MouseButton2 then
-                    location = Mouse.X
-                elseif Input.UserInputType == Enum.UserInputType.Touch then
-                    local touches = UserInputService:GetTouches()
-                    if #touches > 0 then
-                        location = touches[1].Position.X
+            local moveConnection, endConnection
+        
+            moveConnection = UserInputService.InputChanged:Connect(function(changedInput)
+                if changedInput == input then
+                    local location = 0
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 
+                    or input.UserInputType == Enum.UserInputType.MouseButton2 then
+                        location = input.Position.X
+                    elseif input.UserInputType == Enum.UserInputType.Touch then
+                        location = input.Position.X
+                    end
+        
+                    local Scale = math.clamp((location - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+        
+                    local OldValue = Slider.Value
+                    Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * Scale), Info.Rounding)
+        
+                    Slider:Display()
+                    if Slider.Value ~= OldValue then
+                        Library:SafeCallback(Slider.Callback, Slider.Value)
+                        Library:SafeCallback(Slider.Changed, Slider.Value)
                     end
                 end
+            end)
         
-                local Scale = math.clamp((location - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+            endConnection = UserInputService.InputEnded:Connect(function(endedInput)
+                if endedInput == input then
+                    moveConnection:Disconnect()
+                    endConnection:Disconnect()
         
-                local OldValue = Slider.Value
-                Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * Scale), Info.Rounding)
-        
-                Slider:Display()
-                if Slider.Value ~= OldValue then
-                    Library:SafeCallback(Slider.Callback, Slider.Value)
-                    Library:SafeCallback(Slider.Changed, Slider.Value)
+                    for _, Side in pairs(Library.ActiveTab.Sides) do
+                        Side.ScrollingEnabled = true
+                    end
                 end
-        
-                RunService.RenderStepped:Wait()
-            end
-        
-        
-            for _, Side in pairs(Library.ActiveTab.Sides) do
-                Side.ScrollingEnabled = true
-            end
+            end)
         end)
 
         if typeof(Slider.Tooltip) == "string" or typeof(Slider.DisabledTooltip) == "string" then
