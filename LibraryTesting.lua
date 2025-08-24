@@ -3654,24 +3654,20 @@ do
             local moveConnection, endConnection
         
             moveConnection = UserInputService.InputChanged:Connect(function(changedInput)
-                if changedInput == input then
-                    local location = 0
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 
-                    or input.UserInputType == Enum.UserInputType.MouseButton2 then
-                        location = input.Position.X
-                    elseif input.UserInputType == Enum.UserInputType.Touch then
-                        location = input.Position.X
-                    end
-
-                    updatePosition(location)
+                if changedInput.UserInputType == Enum.UserInputType.MouseButton1 then
+                    updatePosition(changedInput.Position.X)
+                elseif changedInput.UserInputType == Enum.UserInputType.Touch then
+                    updatePosition(changedInput.Position.X)
                 end
             end)
         
             endConnection = UserInputService.InputEnded:Connect(function(endedInput)
-                if endedInput == input then
+                if endedInput.UserInputType == Enum.UserInputType.MouseButton1 
+                or endedInput.UserInputType == Enum.UserInputType.Touch then
                     moveConnection:Disconnect()
                     endConnection:Disconnect()
-        
+                    print("Conn ended")
+            
                     for _, Side in pairs(Library.ActiveTab.Sides) do
                         Side.ScrollingEnabled = true
                     end
