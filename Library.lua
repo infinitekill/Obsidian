@@ -6323,8 +6323,6 @@ end
 
 
 
-local cloneref = (cloneref or clonereference or function(instance: any) return instance end)
-local httpService = cloneref(game:GetService("HttpService"))
 local httprequest = (syn and syn.request) or request or http_request or (http and http.request)
 local getassetfunc = getcustomasset or getsynasset
 local isfolder, isfile, listfiles = isfolder, isfile, listfiles
