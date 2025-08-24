@@ -3458,7 +3458,7 @@ do
 
         local Holder = New("Frame", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, Info.Compact and 13 or 31),
+            Size = UDim2.new(Info.ScrollSpace and 0.8 or 1, 0, 0, Info.Compact and 13 or 31),
             Visible = Slider.Visible,
             Parent = Container,
         })
@@ -3481,8 +3481,8 @@ do
             BackgroundColor3 = "MainColor",
             BorderColor3 = "OutlineColor",
             BorderSizePixel = 1,
-            Position = UDim2.fromScale(0.1, 1),
-            Size = UDim2.new(Info.ScrollSpace and 0.8 or 1, 0, 0, 13),
+            Position = UDim2.fromScale(0, 1),
+            Size = UDim2.new(1, 0, 0, 13),
             Text = "",
             Parent = Holder,
         })
