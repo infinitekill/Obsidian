@@ -8134,7 +8134,7 @@ do
     ThemeManager.BuiltInThemes = {
         ["Default"] = {
             1,
-            { FontColor = "ffffff", MainColor = "191919", AccentColor = "7d55ff", BackgroundColor = "0f0f0f", OutlineColor = "282828" },
+            { FontColor = "ffffff", MainColor = "252526", AccentColor = "007acc", BackgroundColor = "1e1e1e", OutlineColor = "333333" },
         },
         ["BBot"] = {
             2,
@@ -8203,7 +8203,11 @@ do
         ["Material"] = {
             18,
             { FontColor = "eeffff", MainColor = "212121", AccentColor = "82aaff", BackgroundColor = "151515", OutlineColor = "424242" },
-        }
+        },
+        ["Obsidian"] = {
+            19,
+            { FontColor = "ffffff", MainColor = "191919", AccentColor = "7d55ff", BackgroundColor = "0f0f0f", OutlineColor = "282828" },
+        },
     }
 
     function ThemeManager:SetLibrary(library)
