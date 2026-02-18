@@ -1282,27 +1282,29 @@ function Library:MouseIsOverFrame(Frame: GuiObject, Mouse: Vector2): boolean
 end
 
 function Library:SafeCallback(Func: (...any) -> ...any, ...: any)
-    if not (Func and typeof(Func) == "function") then
+    if typeof(Func) ~= "function" then
         return
     end
 
-    local Args = table.pack(...)
-    local Result
-    local s,e = pcall(function()
-        Result = table.pack(xpcall(Func, function(Error)
-            task.defer(error, debug.traceback(Error, 2))
-            if Library.NotifyOnError then
-                Library:Notify(Error)
-            end
+    -- pcall takes the function and arguments directly.
+    -- Result[1] will be the success boolean.
+    -- If success is false, Result[2] is the error message.
+    local Result = table.pack(pcall(Func, ...))
 
-            return Error
-        end, table.unpack(Args, 1, Args.n)))
-    end)
-
-    if not Result or not Result[1] then
+    if not Result[1] then
+        local ErrorMsg = Result[2]
+        
+        -- We can still push the error to the console
+        task.defer(error, tostring(ErrorMsg) .. "\n" .. debug.traceback("", 2))
+        
+        if Library.NotifyOnError then
+            Library:Notify(tostring(ErrorMsg))
+        end
+        
         return nil
     end
 
+    -- Return the results, skipping the success boolean
     return table.unpack(Result, 2, Result.n)
 end
 
