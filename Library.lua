@@ -1286,16 +1286,19 @@ function Library:SafeCallback(Func: (...any) -> ...any, ...: any)
         return
     end
 
-    local Result = table.pack(xpcall(Func, function(Error)
-        task.defer(error, debug.traceback(Error, 2))
-        if Library.NotifyOnError then
-            Library:Notify(Error)
-        end
+    local Result
+    local s,e = pcall(function()
+        Result = table.pack(xpcall(Func, function(Error)
+            task.defer(error, debug.traceback(Error, 2))
+            if Library.NotifyOnError then
+                Library:Notify(Error)
+            end
 
-        return Error
-    end, ...))
+            return Error
+        end, ...))
+    end)
 
-    if not Result[1] then
+    if not Result or not Result[1] then
         return nil
     end
 
@@ -8038,7 +8041,6 @@ Library:GiveSignal(Teams.ChildAdded:Connect(OnTeamChange))
 Library:GiveSignal(Teams.ChildRemoved:Connect(OnTeamChange))
 
 getgenv().Library = Library
-
 
 
 
