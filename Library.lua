@@ -1286,6 +1286,7 @@ function Library:SafeCallback(Func: (...any) -> ...any, ...: any)
         return
     end
 
+    local Args = table.pack(...)
     local Result
     local s,e = pcall(function()
         Result = table.pack(xpcall(Func, function(Error)
@@ -1295,7 +1296,7 @@ function Library:SafeCallback(Func: (...any) -> ...any, ...: any)
             end
 
             return Error
-        end, ...))
+        end, table.unpack(Args, 1, Args.n)))
     end)
 
     if not Result or not Result[1] then
