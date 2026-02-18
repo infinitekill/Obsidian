@@ -953,7 +953,7 @@ function Library:SetDPIScale(DPIScale: number)
     end
 
     for _, Option in Options do
-        if Option.Type == "Dropdown" then
+        if Option.Type == "Dropdown" or Option.Type == "PriorityDropdown" then
             Option:RecalculateListSize()
         end
     end
@@ -4381,6 +4381,7 @@ do
 
         local Groupbox = self
         local Container = Groupbox.Container
+        local Buttons = {}
 
         if Info.SpecialType == "Player" then
             Info.Values = GetPlayers(Info.ExcludeLocalPlayer)
@@ -4568,23 +4569,36 @@ do
             return Dropdown.Value and 1 or 0
         end
 
-        local Buttons = {}
+        function Dropdown:ApplySearch()
+            if not SearchBox then return end
+            
+            local SearchText = SearchBox.Text:lower()
+            local Count = 0
+            
+            for _, ButtonData in ipairs(Buttons) do
+                local Button = ButtonData.Instance
+                -- Safety: Ensure Button exists and has the Text property
+                if Button then
+                    local IsMatch = SearchText == "" or Button.Text:lower():find(SearchText, 1, true)
+                    Button.Visible = IsMatch
+                    if IsMatch then Count += 1 end
+                end
+            end
+            
+            Dropdown:RecalculateListSize(Count)
+        end
+
         function Dropdown:BuildDropdownList()
             local Values = Dropdown.Values
             local DisabledValues = Dropdown.DisabledValues
 
-            for Button, _ in Buttons do
-                Button:Destroy()
+            for _, ButtonData in ipairs(Buttons) do
+                ButtonData.Instance:Destroy()
             end
             table.clear(Buttons)
 
-            local Count = 0
+            -- Build ALL buttons once
             for _, Value in Values do
-                if SearchBox and not tostring(Value):lower():match(SearchBox.Text:lower()) then
-                    continue
-                end
-
-                Count += 1
                 local IsDisabled = table.find(DisabledValues, Value)
                 local Table = {}
 
@@ -4635,8 +4649,8 @@ do
                                 Dropdown.Value = Selected and Value or nil
                             end
 
-                            for _, OtherButton in Buttons do
-                                OtherButton:UpdateButton()
+                            for _, ButtonData in ipairs(Buttons) do
+                                ButtonData.Data:UpdateButton()
                             end
                         end
 
@@ -4652,10 +4666,15 @@ do
                 Table:UpdateButton()
                 Dropdown:Display()
 
-                Buttons[Button] = Table
+                table.insert(Buttons, { Instance = Button, Data = Table })
             end
 
-            Dropdown:RecalculateListSize(Count)
+            -- Apply visibility filtering instead of recalculating raw count
+            if SearchBox then
+                Dropdown:ApplySearch()
+            else
+                Dropdown:RecalculateListSize(#Values)
+            end
         end
 
         function Dropdown:SetValue(Value)
@@ -4679,10 +4698,10 @@ do
                 end
             end
 
-            Dropdown:Display()
-            for _, Button in Buttons do
-                Button:UpdateButton()
+            for _, ButtonData in ipairs(Buttons) do
+                ButtonData.Data:UpdateButton()
             end
+            Dropdown:Display()
 
             if not Dropdown.Disabled then
                 Library:UpdateDependencyBoxes()
@@ -4765,7 +4784,18 @@ do
         end)
 
         if SearchBox then
-            SearchBox:GetPropertyChangedSignal("Text"):Connect(Dropdown.BuildDropdownList)
+            local searchThread
+            SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+                -- Cancel previous search if typing fast (Debounce)
+                if searchThread then
+                    task.cancel(searchThread)
+                end
+                
+                -- Wait 0.1 seconds after they stop typing before filtering
+                searchThread = task.delay(0.1, function()
+                    Dropdown:ApplySearch()
+                end)
+            end)
         end
 
         local Defaults = {}
@@ -4816,6 +4846,455 @@ do
         Dropdown.Default = Defaults
         Dropdown.DefaultValues = Dropdown.Values
 
+        Options[Idx] = Dropdown
+
+        return Dropdown
+    end
+
+    function Funcs:AddPriorityDropdown(Idx, Info)
+        Info = Library:Validate(Info, Templates.Dropdown) -- Fallback to Dropdown template
+
+        local Groupbox = self
+        local Container = Groupbox.Container
+
+        local Dropdown = {
+            Text = typeof(Info.Text) == "string" and Info.Text or nil,
+            -- Values should be formatted like: { {"Item1"}, {"Item2", "Item3"} }
+            Values = Info.Values or {}, 
+            Value = Info.Default or {},
+            
+            Tooltip = Info.Tooltip,
+            DisabledTooltip = Info.DisabledTooltip,
+            TooltipTable = nil,
+
+            Callback = Info.Callback,
+            Changed = Info.Changed,
+
+            Disabled = Info.Disabled,
+            Visible = Info.Visible,
+
+            Type = "PriorityDropdown",
+        }
+
+        local Holder = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, Dropdown.Text and 39 or 21),
+            Visible = Dropdown.Visible,
+            Parent = Container,
+        })
+
+        local Label = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 14),
+            Text = Dropdown.Text,
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Visible = not not Info.Text,
+            Parent = Holder,
+        })
+
+        -- 1. The Main Button (Container)
+        local Display = New("TextButton", {
+            Active = not Dropdown.Disabled,
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = "MainColor",
+            BorderColor3 = "OutlineColor",
+            BorderSizePixel = 1,
+            Position = UDim2.fromScale(0, 1),
+            Size = UDim2.new(1, 0, 0, 21),
+            Text = "", -- Keep this blank
+            ClipsDescendants = true, -- Ensures long text doesn't spill out
+            Parent = Holder,
+        })
+
+        -- 2. New: Dedicated Label for the Priority Text
+        local DisplayLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            -- Size leaves a 30px gap on the right for the arrow
+            Size = UDim2.new(1, -30, 1, 0), 
+            Position = UDim2.fromOffset(8, 0), -- Left margin
+            Text = "",
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextTruncate = Enum.TextTruncate.AtEnd, -- Automatic "..."
+            Parent = Display,
+        })
+
+        -- 3. The Arrow (Now stays at the far right regardless of text)
+        local ArrowImage = New("ImageLabel", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Image = ArrowIcon and ArrowIcon.Url or "",
+            ImageRectOffset = ArrowIcon and ArrowIcon.ImageRectOffset or Vector2.zero,
+            ImageRectSize = ArrowIcon and ArrowIcon.ImageRectSize or Vector2.zero,
+            ImageTransparency = 0.5,
+            -- This position is now relative to the TRUE edge of the button
+            Position = UDim2.new(1, -4, 0.5, 0), 
+            Size = UDim2.fromOffset(16, 16),
+            Parent = Display,
+        })
+
+        local MenuTable = Library:AddContextMenu(
+            Display,
+            function()
+                return UDim2.fromOffset(Display.AbsoluteSize.X / Library.DPIScale, 0)
+            end,
+            function()
+                return { 0.5, Display.AbsoluteSize.Y + 1.5 }
+            end,
+            2,
+            function(Active: boolean)
+                ArrowImage.ImageTransparency = Active and 0 or 0.5
+                ArrowImage.Rotation = Active and 180 or 0
+            end
+        )
+        Dropdown.Menu = MenuTable
+        MenuTable.Menu.ScrollBarThickness = 0
+
+        function Dropdown:RecalculateListSize(Count)
+            local Y = math.clamp((Count or #Dropdown.Value) * 25, 0, (Info.MaxVisibleDropdownItems or 8) * 25)
+
+            MenuTable:SetSize(function()
+                return UDim2.fromOffset(Display.AbsoluteSize.X / Library.DPIScale, Y)
+            end)
+        end
+
+        function Dropdown:UpdateColors()
+            if Library.Unloaded then return end
+            Label.TextTransparency = Dropdown.Disabled and 0.8 or 0
+            Display.TextTransparency = Dropdown.Disabled and 0.8 or 0
+            ArrowImage.ImageTransparency = Dropdown.Disabled and 0.8 or MenuTable.Active and 0 or 0.5
+        end
+
+        -- Callbacks for updating the underlying data structure
+        local function FireCallbacks()
+            Dropdown:Display()
+            Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
+            Library:SafeCallback(Dropdown.Changed, Dropdown.Value)
+        end
+
+        local Rows = {}
+        function Dropdown:BuildDropdownList()
+            for Row, _ in Rows do
+                Row:Destroy()
+            end
+            table.clear(Rows)
+
+            local Count = 0
+            for i, valGroup in ipairs(Dropdown.Value) do
+                Count += 1
+
+                local RowFrame = New("Frame", {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 25),
+                    Parent = MenuTable.Menu,
+                })
+
+                local ItemLabel = New("TextLabel", {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, -110, 1, 0), -- Leave room for buttons
+                    Text = table.concat(valGroup, ", "),
+                    TextSize = 13,
+                    TextTransparency = 0.2,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    Parent = RowFrame,
+                })
+                
+                New("UIPadding", {
+                    PaddingLeft = UDim.new(0, 7),
+                    Parent = ItemLabel,
+                })
+
+                local ButtonContainer = New("Frame", {
+                    BackgroundTransparency = 1,
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    Position = UDim2.new(1, -4, 0.5, 0),
+                    Size = UDim2.new(0, 100, 1, 0),
+                    Parent = RowFrame,
+                })
+
+                New("UIListLayout", {
+                    FillDirection = Enum.FillDirection.Horizontal,
+                    HorizontalAlignment = Enum.HorizontalAlignment.Right,
+                    VerticalAlignment = Enum.VerticalAlignment.Center,
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 2),
+                    Parent = ButtonContainer,
+                })
+
+                -- Helper to make small buttons
+                local function CreateActionBtn(icon, order, callback)
+                    local btn = New("TextButton", {
+                        BackgroundColor3 = "MainColor",
+                        BorderColor3 = "OutlineColor",
+                        BorderSizePixel = 1,
+                        Size = UDim2.fromOffset(18, 18),
+                        Text = '', -- Keep main button text blank! We use labels below.
+                        LayoutOrder = order,
+                        Parent = ButtonContainer,
+                    })
+                    btn.MouseButton1Click:Connect(callback)
+
+                    if typeof(icon) == "string" then
+                        -- Single icon (▲, ▼, ✂)
+                        local yOffset = 0
+                        
+                        -- Manually shift the arrows to look perfectly clean
+                        local textSize = 30
+                        if icon == "▲" then yOffset = -5 end -- Shift Upward Arrow slightly UP
+                        if icon == "▼" then yOffset = -1 end  -- Shift Downward Arrow slightly UP
+                        if icon == "✂" then yOffset = 0; textSize = 25 end
+
+                        New("TextLabel", {
+                            BackgroundTransparency = 1,
+                            AnchorPoint = Vector2.new(0.5, 0.5),
+                            Position = UDim2.new(0.5, 0, 0.5, yOffset), -- Apply the offset here
+                            Size = UDim2.fromScale(1, 1),
+                            Text = icon,
+                            TextSize = textSize, -- Use a fixed size for consistency
+                            --TextColor3 = "FontColor",
+                            TextXAlignment = Enum.TextXAlignment.Center,
+                            TextYAlignment = Enum.TextYAlignment.Center,
+                            Parent = btn,
+                        })
+                    else
+                        -- Composite icon (Merge Up/Down)
+                        -- Top icon (▲ or +) positioned cleanly in the upper half
+                        local topOffset, bottomOffset
+                        if icon.top == '▲' then
+                            topOffset = -6
+                            bottomOffset = 3
+                        else
+                            topOffset = -5
+                            bottomOffset = 2
+                        end
+                        New("TextLabel", {
+                            BackgroundTransparency = 1,
+                            AnchorPoint = Vector2.new(0.5, 0.5),
+                            Position = UDim2.new(0.5, 0, 0.5, topOffset), -- Shift up 4 pixels from center
+                            Size = UDim2.fromScale(1, 0.5),
+                            Text = icon.top,
+                            TextSize = 20,
+                            --TextColor3 = "FontColor",
+                            TextXAlignment = Enum.TextXAlignment.Center,
+                            TextYAlignment = Enum.TextYAlignment.Center,
+                            Parent = btn,
+                        })
+
+                        -- Bottom icon (+ or ▼) positioned cleanly in the lower half
+                        New("TextLabel", {
+                            BackgroundTransparency = 1,
+                            AnchorPoint = Vector2.new(0.5, 0.5),
+                            Position = UDim2.new(0.5, 0, 0.5, bottomOffset), -- Shift down 5 pixels from center
+                            Size = UDim2.fromScale(1, 0.5),
+                            Text = icon.bottom,
+                            TextSize = 20,
+                            --TextColor3 = "FontColor",
+                            TextXAlignment = Enum.TextXAlignment.Center,
+                            TextYAlignment = Enum.TextYAlignment.Center,
+                            Parent = btn,
+                        })
+                    end
+                    
+                    return btn
+                end
+
+                -- Break Button (Only if multiple items exist in the index)
+                if #valGroup > 1 then
+                    CreateActionBtn("✂", 1, function()
+                        local elements = Dropdown.Value[i]
+                        table.remove(Dropdown.Value, i)
+                        
+                        -- Insert them individually in order
+                        for j, v in ipairs(elements) do
+                            table.insert(Dropdown.Value, i + j - 1, {v})
+                        end
+                        Dropdown:BuildDropdownList()
+                        FireCallbacks()
+                    end)
+                end
+
+                -- Up Arrow
+                if i > 1 then
+                    CreateActionBtn("▲", 5, function()
+                        Dropdown.Value[i], Dropdown.Value[i-1] = Dropdown.Value[i-1], Dropdown.Value[i]
+                        Dropdown:BuildDropdownList()
+                        FireCallbacks()
+                    end)
+                end
+
+                -- Down Arrow
+                if i < #Dropdown.Value then
+                    CreateActionBtn("▼", 4, function()
+                        Dropdown.Value[i], Dropdown.Value[i+1] = Dropdown.Value[i+1], Dropdown.Value[i]
+                        Dropdown:BuildDropdownList()
+                        FireCallbacks()
+                    end)
+                end
+
+                -- Merge Up
+                if i > 1 then
+                    CreateActionBtn({top = "▲", bottom = "+"}, 3, function()
+                        for _, v in ipairs(Dropdown.Value[i]) do
+                            table.insert(Dropdown.Value[i-1], v)
+                        end
+                        table.remove(Dropdown.Value, i)
+                        Dropdown:BuildDropdownList()
+                        FireCallbacks()
+                    end)
+                end
+
+                -- Merge Down
+                if i < #Dropdown.Value then
+                    CreateActionBtn({top = "+", bottom = "▼"}, 2, function()
+                        for _, v in ipairs(Dropdown.Value[i]) do
+                            table.insert(Dropdown.Value[i+1], v)
+                        end
+                        table.remove(Dropdown.Value, i)
+                        Dropdown:BuildDropdownList()
+                        FireCallbacks()
+                    end)
+                end
+
+                Rows[RowFrame] = true
+            end
+
+            Dropdown:RecalculateListSize(Count)
+        end
+
+        function Dropdown:Display()
+            if Library.Unloaded then return end
+
+            local DisplayParts = {}
+
+            for _, valGroup in ipairs(Dropdown.Value) do
+                if #valGroup > 1 then
+                    -- Format equal priorities as (Item1, Item2)
+                    table.insert(DisplayParts, "(" .. table.concat(valGroup, ", ") .. ")")
+                else
+                    -- Single items just get added normally
+                    table.insert(DisplayParts, valGroup[1])
+                end
+            end
+
+            local Str = table.concat(DisplayParts, ", ")
+
+            DisplayLabel.Text = (Str == "" and "---" or Str)
+        end
+
+        function Dropdown:SetDisabled(Disabled: boolean)
+            Dropdown.Disabled = Disabled
+            if Dropdown.TooltipTable then
+                Dropdown.TooltipTable.Disabled = Dropdown.Disabled
+            end
+            MenuTable:Close()
+            Display.Active = not Dropdown.Disabled
+            Dropdown:UpdateColors()
+        end
+
+        function Dropdown:SetVisible(Visible: boolean)
+            Dropdown.Visible = Visible
+            Holder.Visible = Dropdown.Visible
+            Groupbox:Resize()
+        end
+
+        function Dropdown:SetValues(NewValues)
+            Dropdown.Values = NewValues or {}
+            
+            local validMap = {}
+            for _, v in ipairs(Dropdown.Values) do validMap[v] = true end
+            
+            local newPriorityList = {}
+            local seenMap = {}
+            
+            -- 1. Keep valid items in their current priority groups
+            for _, group in ipairs(Dropdown.Value) do
+                local newGroup = {}
+                for _, item in ipairs(group) do
+                    if validMap[item] then
+                        table.insert(newGroup, item)
+                        seenMap[item] = true
+                    end
+                end
+                if #newGroup > 0 then table.insert(newPriorityList, newGroup) end
+            end
+            
+            -- 2. Add any NEW items from the Master List to the bottom
+            for _, v in ipairs(Dropdown.Values) do
+                if not seenMap[v] then
+                    table.insert(newPriorityList, {v})
+                end
+            end
+            
+            Dropdown.Value = newPriorityList
+            Dropdown:BuildDropdownList()
+            Dropdown:Display()
+        end
+
+        -- SetValue applies a Config file, filtering out invalid items and injecting missing ones
+        function Dropdown:SetValue(LoadedValue)
+            local validMap = {}
+            for _, v in ipairs(Dropdown.Values) do validMap[v] = true end
+            
+            local newPriorityList = {}
+            local seenMap = {}
+            
+            -- 1. Parse the loaded config and filter out removed items
+            if type(LoadedValue) == "table" then
+                for _, group in ipairs(LoadedValue) do
+                    if type(group) == "table" then
+                        local newGroup = {}
+                        for _, item in ipairs(group) do
+                            -- Only keep if it exists in Master List and hasn't been duplicated
+                            if validMap[item] and not seenMap[item] then
+                                table.insert(newGroup, item)
+                                seenMap[item] = true
+                            end
+                        end
+                        if #newGroup > 0 then table.insert(newPriorityList, newGroup) end
+                    end
+                end
+            end
+            
+            -- 2. Add any valid Master List items that were MISSING from the config
+            for _, v in ipairs(Dropdown.Values) do
+                if not seenMap[v] then
+                    table.insert(newPriorityList, {v})
+                end
+            end
+            
+            Dropdown.Value = newPriorityList
+            Dropdown:BuildDropdownList()
+            Dropdown:Display()
+
+            if not Dropdown.Disabled then
+                Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
+                Library:SafeCallback(Dropdown.Changed, Dropdown.Value)
+            end
+        end
+
+        function Dropdown:OnChanged(Func)
+            Dropdown.Changed = Func
+        end
+
+        -- Trigger Menu
+        Display.MouseButton1Click:Connect(function()
+            if Dropdown.Disabled then return end
+            MenuTable:Toggle()
+        end)
+
+        if typeof(Dropdown.Tooltip) == "string" or typeof(Dropdown.DisabledTooltip) == "string" then
+            Dropdown.TooltipTable = Library:AddTooltip(Dropdown.Tooltip, Dropdown.DisabledTooltip, Display)
+            Dropdown.TooltipTable.Disabled = Dropdown.Disabled
+        end
+
+        Dropdown:UpdateColors()
+        Dropdown:Display()
+        Dropdown:BuildDropdownList()
+        Groupbox:Resize()
+
+        Dropdown.Holder = Holder
+        table.insert(Groupbox.Elements, Dropdown)
         Options[Idx] = Dropdown
 
         return Dropdown
@@ -7371,7 +7850,7 @@ function Library:CreateWindow(WindowInfo)
                 if Option.Type == "ColorPicker" then
                     Option.ColorMenu:Close()
                     Option.ContextMenu:Close()
-                elseif Option.Type == "Dropdown" or Option.Type == "KeyPicker" then
+                elseif Option.Type == "Dropdown" or Option.Type == "PriorityDropdown" or Option.Type == "KeyPicker" then
                     Option.Menu:Close()
                 end
             end
@@ -7470,7 +7949,7 @@ function Library:CreateWindow(WindowInfo)
         task.spawn(Library.Toggle)
     end
 
-    if Library.IsMobile then
+    if Library.IsMobile or true then
         local ToggleButton = Library:AddDraggableButton("Toggle", function()
             Library:Toggle()
         end, true)
@@ -7581,7 +8060,6 @@ getgenv().Library = Library
 
 
 
-
 -- SaveManager
 if typeof(clonefunction) == "function" then
     -- Fix is_____ functions for shitsploits, those functions should never error, only return a boolean.
@@ -7648,6 +8126,17 @@ local SaveManager = {} do
             Load = function(idx, data)
                 local object = SaveManager.Library.Options[idx]
                 if object and object.Value ~= data.value then
+                    object:SetValue(data.value)
+                end
+            end,
+        },
+        PriorityDropdown = {
+            Save = function(idx, object)
+                return { type = "PriorityDropdown", idx = idx, value = object.Value }
+            end,
+            Load = function(idx, data)
+                local object = SaveManager.Library.Options[idx]
+                if object then
                     object:SetValue(data.value)
                 end
             end,
@@ -8597,17 +9086,4 @@ do
 end
 
 getgenv().ObsidianThemeManager = ThemeManager
-
-
-
-
-
-
-
-
-
-
-
-
-
 return Library, SaveManager, ThemeManager
