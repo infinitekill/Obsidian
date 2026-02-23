@@ -1058,6 +1058,7 @@ local function FillInstance(Table: { [string]: any }, Instance: GuiObject)
             end
         end
 
+        setthreadcontext(2)
         Instance[key] = value
     end
 
