@@ -1303,11 +1303,30 @@ function Library:SafeCallback(Func: (...any) -> ...any, ...: any)
     return table.unpack(Result, 2, Result.n)
 end
 
-function Library:MakeDraggable(UI: GuiObject, DragFrame: GuiObject, IgnoreToggled: boolean?, IsMainWindow: boolean?)
+function Library:MakeDraggable(UI: GuiObject, DragFrame: GuiObject, IgnoreToggled: boolean?, IsMainWindow: boolean?, IsLibButton: boolean?)
     local StartPos
     local FramePos
     local Dragging = false
     local Changed
+
+    local function Save()
+        if not IsLibButton or UI.Position == FramePos then return end
+        
+        task.delay(0.1, function() 
+            local Data = {}
+            if isfile('InfiniteObsidian/ButtonPositions') then
+                pcall(function()
+                    Data = HttpService:JSONDecode(readfile('InfiniteObsidian/ButtonPositions'))
+                end)
+            end
+            
+            local buttonText = UI.Text:lower()
+            local buttonKey = buttonText:find('toggle') and 'Toggle' or 'Lock'
+            Data[buttonKey] = {X = UI.Position.X.Offset, Y = UI.Position.Y.Offset}
+            writefile('InfiniteObsidian/ButtonPositions', HttpService:JSONEncode(Data))
+        end)
+    end
+
     DragFrame.InputBegan:Connect(function(Input: InputObject)
         if not IsClickInput(Input) or IsMainWindow and Library.CantDragForced then
             return
@@ -1323,6 +1342,8 @@ function Library:MakeDraggable(UI: GuiObject, DragFrame: GuiObject, IgnoreToggle
             end
 
             Dragging = false
+            Save()
+
             if Changed and Changed.Connected then
                 Changed:Disconnect()
                 Changed = nil
@@ -1336,6 +1357,7 @@ function Library:MakeDraggable(UI: GuiObject, DragFrame: GuiObject, IgnoreToggle
             or not (ScreenGui and ScreenGui.Parent)
         then
             Dragging = false
+            Save()
             if Changed and Changed.Connected then
                 Changed:Disconnect()
                 Changed = nil
@@ -1542,6 +1564,7 @@ function Library:AddDraggableButton(Text: string, Func, ExcludeScaling: boolean?
     local Table = {}
 
     local Button = New("TextButton", {
+        Name = Text, 
         BackgroundColor3 = "BackgroundColor",
         Position = UDim2.fromOffset(6, 6),
         TextSize = 16,
@@ -1565,7 +1588,7 @@ function Library:AddDraggableButton(Text: string, Func, ExcludeScaling: boolean?
     Button.MouseButton1Click:Connect(function()
         Library:SafeCallback(Func, Table)
     end)
-    Library:MakeDraggable(Button, Button, true)
+    Library:MakeDraggable(Button, Button, true, false, true)
 
     Table.Button = Button
 
@@ -7949,25 +7972,69 @@ function Library:CreateWindow(WindowInfo)
     if WindowInfo.AutoShow then
         task.spawn(Library.Toggle)
     end
-
-    if Library.IsMobile or true then
+    
+    do
         local ToggleButton = Library:AddDraggableButton("Toggle", function()
             Library:Toggle()
         end, true)
 
-        local LockButton = Library:AddDraggableButton("Lock", function(self)
-            Library.CantDragForced = not Library.CantDragForced
-            self:SetText(Library.CantDragForced and "Unlock" or "Lock")
-        end, true)
+        local LockButton
+        if Library.IsMobile then
+            LockButton = Library:AddDraggableButton("Lock", function(self)
+                Library.CantDragForced = not Library.CantDragForced
+                self:SetText(Library.CantDragForced and "Unlock" or "Lock")
+            end, true)
+        end
 
         if WindowInfo.MobileButtonsSide == "Right" then
             ToggleButton.Button.Position = UDim2.new(1, -6, 0, 6)
             ToggleButton.Button.AnchorPoint = Vector2.new(1, 0)
 
-            LockButton.Button.Position = UDim2.new(1, -6, 0, 46)
-            LockButton.Button.AnchorPoint = Vector2.new(1, 0)
+            if LockButton then
+                LockButton.Button.Position = UDim2.new(1, -6, 0, 46)
+                LockButton.Button.AnchorPoint = Vector2.new(1, 0)
+            end
         else
-            LockButton.Button.Position = UDim2.fromOffset(6, 46)
+            if LockButton then
+                LockButton.Button.Position = UDim2.fromOffset(6, 46)
+            end
+        end
+
+        local Data
+        if isfile('InfiniteObsidian/ButtonPositions') then
+            pcall(function()
+                Data = HttpService:JSONDecode(readfile('InfiniteObsidian/ButtonPositions'))
+            end)
+        end
+        if Data then
+            if Data.Toggle then
+                ToggleButton.Button.AnchorPoint = Vector2.new(0, 0) -- Reset anchor for manual offset
+                ToggleButton.Button.Position = UDim2.fromOffset(Data.Toggle.X, Data.Toggle.Y)
+            end
+
+            if Data.Lock then
+                LockButton.Button.AnchorPoint = Vector2.new(0, 0) -- Reset anchor for manual offset
+                LockButton.Button.Position = UDim2.fromOffset(Data.Lock.X, Data.Lock.Y)
+            end
+        end
+        function Library:ResetButtonPositions()
+            if WindowInfo.MobileButtonsSide == "Right" then
+                ToggleButton.Button.Position = UDim2.new(1, -6, 0, 6)
+                ToggleButton.Button.AnchorPoint = Vector2.new(1, 0)
+
+                if LockButton then
+                    LockButton.Button.Position = UDim2.new(1, -6, 0, 46)
+                    LockButton.Button.AnchorPoint = Vector2.new(1, 0)
+                end
+            else
+                ToggleButton.Button.AnchorPoint = Vector2.new(0, 0)
+                ToggleButton.Button.Position = UDim2.fromOffset(6, 6)
+
+                if LockButton then
+                    LockButton.Button.Position = UDim2.fromOffset(6, 46)
+                end
+            end
+            delfile('InfiniteObsidian/ButtonPositions') -- Delete saved button position data
         end
     end
 
@@ -9088,3 +9155,12 @@ end
 
 getgenv().ObsidianThemeManager = ThemeManager
 return Library, SaveManager, ThemeManager
+
+--[[ Changes compared to original Obsidian
+Non-laggy dropdown searchbar
+AddPriorityDropdown
+ScrollSpace for sliders
+Forced Data.SoundId for notifications
+Toggle/Lock Buttons save position as you change it and autoload it
+Reset Button Positions function
+]]
