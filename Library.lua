@@ -8411,6 +8411,57 @@ local SaveManager = {} do
         return true
     end
 
+    function SaveManager:Export(name)
+        if (not name) then
+            return false, "no config file is selected"
+        end
+        SaveManager:CheckFolderTree()
+
+        local file = self.Folder .. "/settings/" .. name .. ".json"
+        if SaveManager:CheckSubFolder(true) then
+            file = self.Folder .. "/settings/" .. self.SubFolder .. "/" .. name .. ".json"
+        end
+
+        if not isfile(file) then return false, "invalid file" end
+
+        local success, decoded = pcall(HttpService.JSONDecode, HttpService, readfile(file))
+        if not success then return false, "decode error" end
+
+        decoded.configName = name
+
+        local success, encoded = pcall(HttpService.JSONEncode, HttpService, decoded)
+        if not success then return false, "encode error" end
+
+        setclipboard(encoded)
+
+        return true
+    end
+
+    function SaveManager:Import(inputData)
+        if (not inputData or #inputData < 1) then
+            return false, "import data is empty"
+        end
+        SaveManager:CheckFolderTree()
+
+        local success, decoded = pcall(HttpService.JSONDecode, HttpService, inputData)
+        if not success then return false, "decode error" end
+
+        if not decoded.configName then return false, "config name not found" end
+        local name = decoded.configName
+
+        local fullPath = self.Folder .. "/settings/" .. name .. ".json"
+        if SaveManager:CheckSubFolder(true) then
+            fullPath = self.Folder .. "/settings/" .. self.SubFolder .. "/" .. name .. ".json"
+        end
+
+        local success, encoded = pcall(HttpService.JSONEncode, HttpService, decoded)
+        if not success then return false, "encode error" end
+
+        writefile(fullPath, encoded)
+
+        return true, name
+    end
+
     function SaveManager:RefreshConfigList()
         local success, data = pcall(function()
             SaveManager:CheckFolderTree()
@@ -8575,8 +8626,7 @@ local SaveManager = {} do
             end
 
             self.Library:Notify(string.format("Loaded config %q", name))
-        end)
-        section:AddButton("Overwrite config", function()
+        end):AddButton("Overwrite config", function()
             local name = self.Library.Options.SaveManager_ConfigList.Value
 
             local success, err = self:Save(name)
@@ -8600,14 +8650,12 @@ local SaveManager = {} do
             self.Library:Notify(string.format("Deleted config %q", name))
             self.Library.Options.SaveManager_ConfigList:SetValues(self:RefreshConfigList())
             self.Library.Options.SaveManager_ConfigList:SetValue(nil)
-        end)
-
-        section:AddButton("Refresh list", function()
+        end):AddButton("Refresh list", function()
             self.Library.Options.SaveManager_ConfigList:SetValues(self:RefreshConfigList())
             self.Library.Options.SaveManager_ConfigList:SetValue(nil)
         end)
 
-        section:AddButton("Set as autoload", function()
+        section:AddButton("Set autoload", function()
             local name = self.Library.Options.SaveManager_ConfigList.Value
 
             local success, err = self:SaveAutoloadConfig(name)
@@ -8618,8 +8666,7 @@ local SaveManager = {} do
 
             self.Library:Notify(string.format("Set %q to auto load", name))
             self.AutoloadConfigLabel:SetText("Current autoload config: " .. name)
-        end)
-        section:AddButton("Reset autoload", function()
+        end):AddButton("Reset autoload", function()
             local success, err = self:DeleteAutoLoadConfig()
             if not success then
                 self.Library:Notify("Failed to set autoload config: " .. err)
@@ -8631,6 +8678,35 @@ local SaveManager = {} do
         end)
 
         self.AutoloadConfigLabel = section:AddLabel("Current autoload config: " .. self:GetAutoloadConfig(), true)
+
+        section:AddDivider()
+
+        section:AddInput('importData', {
+            Text = 'Import Data',
+            Default = '',
+            Finished = true,
+        })
+        section:AddButton("Export config", function()
+            local name = self.Library.Options.SaveManager_ConfigList.Value
+
+            local success, err = self:Export(name)
+            if not success then
+                self.Library:Notify("Failed to export config: " .. err)
+                return
+            end
+
+            self.Library:Notify("Config copied to your clipboard!")
+        end):AddButton("Import config", function()
+            local success, returnValue = self:Import(self.Library.Options.importData.Value)
+            if not success then
+                self.Library:Notify("Failed to import config: " .. returnValue)
+                return
+            end
+
+            self.Library:Notify(string.format("Imported config %q", returnValue))
+            self.Library.Options.SaveManager_ConfigList:SetValues(self:RefreshConfigList())
+            self.Library.Options.SaveManager_ConfigList:SetValue(returnValue)
+        end)
 
         -- self:LoadAutoloadConfig()
         self:SetIgnoreIndexes({ "SaveManager_ConfigList", "SaveManager_ConfigName" })
