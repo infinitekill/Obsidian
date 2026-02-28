@@ -8427,9 +8427,12 @@ local SaveManager = {} do
         local success, decoded = pcall(HttpService.JSONDecode, HttpService, readfile(file))
         if not success then return false, "decode error" end
 
-        decoded.configName = name
+        local exportData = {
+            configName = name,
+            objects = decoded.objects
+        }
 
-        local success, encoded = pcall(HttpService.JSONEncode, HttpService, decoded)
+        local success, encoded = pcall(HttpService.JSONEncode, HttpService, exportData)
         if not success then return false, "encode error" end
 
         setclipboard(encoded)
