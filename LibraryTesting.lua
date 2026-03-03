@@ -4737,6 +4737,10 @@ do
         function Dropdown:SetValues(Values)
             Dropdown.Values = Values
             Dropdown:BuildDropdownList()
+
+            Library:UpdateDependencyBoxes()
+            Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
+            Library:SafeCallback(Dropdown.Changed, Dropdown.Value)
         end
 
         function Dropdown:AddValues(Values)
