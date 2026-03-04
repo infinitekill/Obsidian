@@ -4841,8 +4841,7 @@ do
                     task.cancel(searchThread)
                 end
                 
-                -- Wait 0.1 seconds after they stop typing before filtering
-                searchThread = task.delay(0.1, function()
+                searchThread = task.delay(0.05, function()
                     Dropdown:ApplySearch()
                 end)
             end)
