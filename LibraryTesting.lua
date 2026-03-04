@@ -4421,6 +4421,7 @@ do
             Values = Info.Values,
             DisabledValues = Info.DisabledValues,
             Multi = Info.Multi,
+            SelectedOnTop = Info.SelectedOnTop,
 
             SpecialType = Info.SpecialType,
             ExcludeLocalPlayer = Info.ExcludeLocalPlayer,
@@ -4612,6 +4613,23 @@ do
             Dropdown:RecalculateListSize(Count)
         end
 
+        function Dropdown:ReorderList()
+            if not Info.SelectedOnTop then return end
+
+            for i, ButtonData in ipairs(Buttons) do
+                local Value = ButtonData.Value -- Make sure you store the 'Value' in ButtonData
+                local IsDisabled = table.find(Dropdown.DisabledValues, Value)
+                local IsSelected = Info.Multi and Dropdown.Value[Value] or Dropdown.Value == Value
+                
+                -- Calculate Priority
+                local Priority = IsSelected and 0 or (IsDisabled and 20000 or 10000)
+                
+                -- LayoutOrder = Base Weight + Original Alphabetical Index
+                -- This keeps alphabetical order within the groups.
+                ButtonData.Instance.LayoutOrder = Priority + i
+            end
+        end
+
         function Dropdown:BuildDropdownList()
             local Values = Dropdown.Values
             local DisabledValues = Dropdown.DisabledValues
@@ -4678,6 +4696,10 @@ do
                             end
                         end
 
+                        if Info.SelectedOnTop then
+                            Dropdown:ReorderList()
+                        end
+
                         Table:UpdateButton()
                         Dropdown:Display()
 
@@ -4690,7 +4712,7 @@ do
                 Table:UpdateButton()
                 Dropdown:Display()
 
-                table.insert(Buttons, { Instance = Button, Data = Table })
+                table.insert(Buttons, { Instance = Button, Data = Table, Value = Value })
             end
 
             -- Apply visibility filtering instead of recalculating raw count
@@ -4867,6 +4889,9 @@ do
         Dropdown:Display()
         Dropdown:BuildDropdownList()
         Groupbox:Resize()
+        if Info.SelectedOnTop then
+            Dropdown:ReorderList()
+        end
 
         Dropdown.Holder = Holder
         table.insert(Groupbox.Elements, Dropdown)
@@ -9241,8 +9266,10 @@ return Library, SaveManager, ThemeManager
 
 --[[ Changes compared to original Obsidian
 Non-laggy dropdown searchbar
+Callback/OnChanged call to Dropdown:SetValues
+SelectedOnTop option to Dropdowns. Shows selected values on top
 AddPriorityDropdown
-ScrollSpace for sliders
+ScrollSpace for sliders for scrolling on mobile
 Forced Data.SoundId for notifications
 Toggle/Lock Buttons save position as you change it and autoload it
 Reset Button Positions function
