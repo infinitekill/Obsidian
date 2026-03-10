@@ -8565,7 +8565,7 @@ local SaveManager = {} do
         return "none"
     end
 
-    function SaveManager:LoadAutoloadConfig()
+    function SaveManager:LoadAutoloadConfig(stringCheck)
         SaveManager:CheckFolderTree()
 
         local autoLoadPath = self.Folder .. "/settings/autoload.txt"
@@ -8579,6 +8579,8 @@ local SaveManager = {} do
                 self.Library:Notify("Failed to load autoload config: write file error")
                 return
             end
+
+            if stringCheck and not name:lower():find(stringCheck:lower()) then return end
 
             local success, err = self:Load(name)
             if not success then
